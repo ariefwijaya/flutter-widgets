@@ -2249,6 +2249,30 @@ class FilterCondition {
   }
 }
 
+/// A mixin that allows a [DataGridSource] to supply static values for the
+/// checkbox filter popup, rather than deriving them from the currently-loaded
+/// rows.
+///
+/// This is useful for server-side [SfDataGrid]s where only one page of data is
+/// loaded at a time, and the checkbox filter would otherwise show only the
+/// values present in the current page.
+///
+/// ```dart
+/// class MyDataSource extends DataGridSource with CheckboxFilterValueProvider {
+///   @override
+///   List<Object>? getCheckboxFilterValues(String columnName) {
+///     if (columnName == 'status') return <Object>['Active', 'Inactive'];
+///     return null; // fall back to default row-derived values
+///   }
+/// }
+/// ```
+mixin CheckboxFilterValueProvider {
+  /// Return the list of values to display in the checkbox filter popup for
+  /// [columnName], or `null` to fall back to the default behaviour of
+  /// deriving values from the currently-loaded rows.
+  List<Object>? getCheckboxFilterValues(String columnName);
+}
+
 /// Provides the base functionalities to process the filtering in [SfDataGrid].
 class DataGridFilterHelper {
   /// Creates the [DataGridFilterHelper] for [SfDataGrid].
@@ -2723,10 +2747,22 @@ class DataGridFilterHelper {
   /// Sets all the cell values to the check box filter.
   void setDataGridSource(GridColumn column) {
     final List<DataGridRow> items = _getPreviousFilteredRows(column.columnName);
-    final List<FilterElement> distinctCollection = _getCellValues(
-      column,
-      items,
-    );
+    final DataGridSource source = _dataGridStateDetails().source;
+    List<FilterElement> distinctCollection;
+
+    if (source is CheckboxFilterValueProvider) {
+      final List<Object>? customValues =
+          (source as CheckboxFilterValueProvider)
+              .getCheckboxFilterValues(column.columnName);
+      if (customValues != null) {
+        distinctCollection =
+            _getCustomFilterElements(column, customValues, source);
+      } else {
+        distinctCollection = _getCellValues(column, items);
+      }
+    } else {
+      distinctCollection = _getCellValues(column, items);
+    }
 
     checkboxFilterHelper._previousDataGridSource = <FilterElement>[];
 
@@ -2751,6 +2787,41 @@ class DataGridFilterHelper {
     }
 
     checkboxFilterHelper.ensureSelectAllCheckboxState();
+  }
+
+  /// Builds [FilterElement]s from a static [customValues] list.
+  ///
+  /// Uses the same selection-state logic as [_getCellValues]: all values are
+  /// selected when no filter is active; when a filter is active, a value is
+  /// selected if it appears in the current [DataGridSource.effectiveRows].
+  List<FilterElement> _getCustomFilterElements(
+    GridColumn column,
+    List<Object> customValues,
+    DataGridSource source,
+  ) {
+    final List<FilterCondition> conditions =
+        source.filterConditions[column.columnName] ?? <FilterCondition>[];
+
+    bool isSelected(Object value) {
+      if (conditions.isNotEmpty) {
+        for (final DataGridRow row in source.effectiveRows) {
+          final DataGridCell? cell = row.getCells().firstWhereOrNull(
+            (DataGridCell element) => element.columnName == column.columnName,
+          );
+          if (cell?.value?.toString() == value.toString()) {
+            return true;
+          }
+        }
+        return false;
+      }
+      return true;
+    }
+
+    return customValues
+        .map<FilterElement>(
+          (Object v) => FilterElement(value: v, isSelected: isSelected(v)),
+        )
+        .toList();
   }
 
   List<DataGridRow> _getFilterRows(
