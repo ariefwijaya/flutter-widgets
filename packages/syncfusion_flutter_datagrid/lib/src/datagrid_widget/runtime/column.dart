@@ -3332,6 +3332,8 @@ class DataGridAdvancedFilterHelper {
     ];
 
     textFieldFilterTypes = <String>[
+      localizations.equalsDataGridFilteringLabel,
+      localizations.doesNotEqualDataGridFilteringLabel,
       localizations.beginsWithDataGridFilteringLabel,
       localizations.endsWithDataGridFilteringLabel,
       localizations.doesNotBeginWithDataGridFilteringLabel,
