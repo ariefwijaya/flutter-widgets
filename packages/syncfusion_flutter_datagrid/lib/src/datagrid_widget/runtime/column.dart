@@ -2557,7 +2557,8 @@ class DataGridFilterHelper {
                       condition.type == FilterType.lessThanOrEqual)) {
                 return true;
               } else {
-                if (cellValue?.runtimeType != condition.value?.runtimeType &&
+                if (condition.value != null &&
+                    cellValue?.runtimeType != condition.value?.runtimeType &&
                     (cellValue is! num && condition.value is! num)) {
                   throwAssertFailure(
                     '${condition.value?.runtimeType} and ${cellValue.runtimeType} are not the same data type',
