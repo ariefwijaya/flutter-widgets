@@ -2557,7 +2557,8 @@ class DataGridFilterHelper {
                       condition.type == FilterType.lessThanOrEqual)) {
                 return true;
               } else {
-                if (cellValue?.runtimeType != condition.value?.runtimeType &&
+                if (condition.value != null &&
+                    cellValue?.runtimeType != condition.value?.runtimeType &&
                     (cellValue is! num && condition.value is! num)) {
                   throwAssertFailure(
                     '${condition.value?.runtimeType} and ${cellValue.runtimeType} are not the same data type',
@@ -3332,6 +3333,8 @@ class DataGridAdvancedFilterHelper {
     ];
 
     textFieldFilterTypes = <String>[
+      localizations.equalsDataGridFilteringLabel,
+      localizations.doesNotEqualDataGridFilteringLabel,
       localizations.beginsWithDataGridFilteringLabel,
       localizations.endsWithDataGridFilteringLabel,
       localizations.doesNotBeginWithDataGridFilteringLabel,
@@ -3402,6 +3405,15 @@ class DataGridAdvancedFilterHelper {
     DataGridConfiguration dataGridConfiguration,
     GridColumn column,
   ) {
+    // If the column explicitly declares its advanced filter type (e.g. for
+    // server-side grids where source.rows may be empty), honour that directly.
+    final AdvancedFilterType? explicit =
+        column.filterPopupMenuOptions?.advancedFilterType;
+    if (explicit != null) {
+      advancedFilterType = explicit;
+      return;
+    }
+
     Object? value;
     for (final DataGridRow row in dataGridConfiguration.source.rows) {
       final DataGridCell? cellValue = row.getCells().firstWhereOrNull(
@@ -3506,6 +3518,7 @@ class FilterPopupMenuOptions {
     this.canShowClearFilterOption = true,
     this.canShowSortingOptions = true,
     this.showColumnName = true,
+    this.advancedFilterType,
   });
 
   /// Decides how the checked listbox and advanced filter options should be shown in filter popup.
@@ -3519,6 +3532,11 @@ class FilterPopupMenuOptions {
 
   /// Decides whether the column name should be displayed along with the content of `Clear Filter` option .
   final bool showColumnName;
+
+  /// Explicitly sets the advanced filter type for the column, bypassing the
+  /// automatic detection from [DataGridSource.rows]. Use this for server-side
+  /// grids where rows may be empty or partial when the filter dialog opens.
+  final AdvancedFilterType? advancedFilterType;
 }
 
 /// Process column resizing operation in [SfDataGrid].
